@@ -56,17 +56,16 @@ function getNumber(name: string, fallback: number): number {
 // REQUIRED SECRETS (fail fast if missing)
 // ---------------------------------------------------------------------------
 
-const POLY_PRIVATE_KEY = getRequired("POLY_PRIVATE_KEY");
+const rawKey = getRequired("POLY_PRIVATE_KEY");
+const stripped = rawKey.startsWith("0x") ? rawKey.slice(2) : rawKey;
 
-if (!POLY_PRIVATE_KEY.startsWith("0x")) {
-  throw new Error("POLY_PRIVATE_KEY must start with 0x");
-}
-
-if (POLY_PRIVATE_KEY.length !== 66) {
+if (!/^[0-9a-fA-F]{64}$/.test(stripped)) {
   throw new Error(
-    `POLY_PRIVATE_KEY must be 66 characters, got ${POLY_PRIVATE_KEY.length}`
+    `POLY_PRIVATE_KEY must be a 64-character hex string (with or without 0x prefix)`
   );
 }
+
+const POLY_PRIVATE_KEY = `0x${stripped}`;
 
 const POLY_PROXY_WALLET = getRequired("POLY_PROXY_WALLET");
 
