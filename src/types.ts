@@ -220,3 +220,9 @@ export interface Opportunities {
   makers: MakerOpportunity[];
   matched: MatchedMarket[]; // full analysis results (for logging/CLV tracking)
 }
+
+export interface ExposureSnapshot {
+  marketKey: string;
+  bucketKey?: string;
+  exposureUSD: number;
+}
