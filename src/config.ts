@@ -1,5 +1,5 @@
 import "dotenv/config";
-
+import { log } from "./logger.js";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -34,8 +34,11 @@ function getBoolean(name: string, fallback: boolean): boolean {
   if (value === "true") return true;
   if (value === "false") return false;
 
-  console.warn(
-    `[config] ${name}="${value}" is invalid, using fallback=${fallback}`,
+  // console.warn(
+  //   `[config] ${name}="${value}" is invalid, using fallback=${fallback}`,
+  // );
+  log.warn(
+    `[config] ${name}="${value}" is not a valid boolean, using fallback=${fallback}`,
   );
 
   return fallback;

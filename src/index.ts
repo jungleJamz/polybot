@@ -8,6 +8,7 @@ import { fetchBestPricesForTokens } from "./arb/orderbook.js";
 import { executeTakerOrder, placeMakerOrder } from "./arb/execution.js";
 import { evaluateMakerOrders } from "./arb/maker-management.js";
 import { fetchWalletState } from "./clients/wallet.js";
+import { log } from "./logger.js";
 import {
   fetchCurrentPositions,
   fetchOpenOrders,
@@ -58,15 +59,20 @@ async function executeTakers(
   positionMap: Map<string, EnrichedPosition>,
 ): Promise<void> {
   if (takers.length === 0) {
-    console.log("   No taker opportunities.");
+    //console.log("   No taker opportunities.");
+    log.info("   no taker opportunities");
     return;
   }
 
   for (const taker of takers) {
     if (taker.bookmakers.length < TAKER_MIN_BOOKMAKERS) {
-      console.log(
+      // console.log(
+      //   `   skip ${taker.marketSlug} (${taker.outcomeName}): only ${taker.bookmakers.length} books`,
+      // );
+      log.debug(
         `   skip ${taker.marketSlug} (${taker.outcomeName}): only ${taker.bookmakers.length} books`,
       );
+
       continue;
     }
 
@@ -77,7 +83,10 @@ async function executeTakers(
     );
 
     if (sharesToBuy < taker.minOrderSize) {
-      console.log(
+      // console.log(
+      //   `   skip ${taker.marketSlug} (${taker.outcomeName}): already own ${currentShares.toFixed(2)} shares`,
+      // );
+      log.debug(
         `   skip ${taker.marketSlug} (${taker.outcomeName}): already own ${currentShares.toFixed(2)} shares`,
       );
       continue;
@@ -96,10 +105,13 @@ async function executeTakers(
       const result = await executeTakerOrder(adjusted, { dryRun: DRY_RUN });
 
       if (DRY_RUN) {
-        console.log(`   [DRY] taker ${taker.marketSlug} (${taker.outcomeName}) EV=${(taker.ev * 100).toFixed(2)}%
+        //       console.log(`   [DRY] taker ${taker.marketSlug} (${taker.outcomeName}) EV=${(taker.ev * 100).toFixed(2)}%
+        // size=${sharesToBuy.toFixed(2)}@${(taker.polymarketAsk * 100).toFixed(1)}%`);
+        log.info(`   [DRY] taker ${taker.marketSlug} EV=${(taker.ev * 100).toFixed(2)}%
   size=${sharesToBuy.toFixed(2)}@${(taker.polymarketAsk * 100).toFixed(1)}%`);
       } else if (result.filled && result.orderId) {
-        console.log(`   filled ${taker.marketSlug} order=${result.orderId}`);
+        //console.log(`   filled ${taker.marketSlug} order=${result.orderId}`);
+        log.info(`   filled ${taker.marketSlug} order=${result.orderId}`);
         saveWager({
           order_id: result.orderId,
           token_id: taker.tokenId,
@@ -123,7 +135,9 @@ async function executeTakers(
         console.log(`   not filled: ${taker.marketSlug}`);
       }
     } catch (err: any) {
-      console.error(`   taker error ${taker.marketSlug}:`, err.message);
+      // console.error(`   taker error ${taker.marketSlug}:`, err.message);
+      //log.error(`   error taker ${taker.marketSlug}: ${err.message}`);
+      log.warn(`   error taker ${taker.marketSlug}: ${err.message}`);
     }
 
     await sleep(100);
@@ -139,7 +153,8 @@ async function placeNewMakers(
   positionMap: Map<string, EnrichedPosition>,
 ): Promise<void> {
   if (makers.length === 0) {
-    console.log("   No maker opportunities.");
+    //console.log("   No maker opportunities.");
+    log.info("   no maker opportunities");
     return;
   }
 
@@ -177,10 +192,13 @@ async function placeNewMakers(
       const result = await placeMakerOrder(adjusted, { dryRun: DRY_RUN });
 
       if (DRY_RUN) {
-        console.log(`   [DRY] maker ${maker.marketSlug} (${maker.outcomeName}) EV=${(maker.ev * 100).toFixed(2)}%
+        //       console.log(`   [DRY] maker ${maker.marketSlug} (${maker.outcomeName}) EV=${(maker.ev * 100).toFixed(2)}%
+        // size=${sharesToBuy.toFixed(2)}@${(maker.targetPrice * 100).toFixed(1)}%`);
+        log.info(`   [DRY] maker ${maker.marketSlug} EV=${(maker.ev * 100).toFixed(2)}%
   size=${sharesToBuy.toFixed(2)}@${(maker.targetPrice * 100).toFixed(1)}%`);
       } else if (result.orderId) {
-        console.log(`   placed ${maker.marketSlug} order=${result.orderId}`);
+        // console.log(`   placed ${maker.marketSlug} order=${result.orderId}`);
+        log.info(`   PLACE maker ${maker.marketSlug} order=${result.orderId}`);
         registerMakerOrder(
           result.orderId,
           adjusted,
@@ -188,10 +206,12 @@ async function placeNewMakers(
           adjusted.eventStartTime,
         );
       } else {
-        console.log(`   placement failed: ${maker.marketSlug}`);
+        // console.log(`   placement failed: ${maker.marketSlug}`);
+        log.warn(`   FAIL maker ${maker.marketSlug}`);
       }
     } catch (err: any) {
-      console.error(`   maker error ${maker.marketSlug}:`, err.message);
+      // console.error(`   maker error ${maker.marketSlug}:`, err.message);
+      log.error(`   error maker ${maker.marketSlug}: ${err.message}`);
     }
 
     await sleep(100);
@@ -210,7 +230,8 @@ async function evaluateExistingMakers(
 ): Promise<void> {
   const tracked = getTrackedMakerOrders();
   if (tracked.length === 0) {
-    console.log("   No makers to evaluate.");
+    //console.log("   No makers to evaluate.");
+    log.info("   no makers to evaluate");
     return;
   }
 
@@ -253,25 +274,29 @@ async function evaluateExistingMakers(
     livePrices,
   );
 
-  console.log(
-    `   ${decision.cancelOrderIds.length} to cancel, ${decision.cleanedUpOrderIds.length} cleaned up`,
-  );
+  // console.log(
+  //   `   ${decision.cancelOrderIds.length} to cancel, ${decision.cleanedUpOrderIds.length} cleaned up`,
+  // );
+  log.info(`   ${decision.cancelOrderIds.length} to cancel,
+  ${decision.cleanedUpOrderIds.length} cleaned`);
 
   if (decision.cancelOrderIds.length > 0) {
     if (DRY_RUN) {
-      decision.cancelOrderIds.forEach((id) =>
-        console.log(`   [DRY] cancel ${id}`),
-      );
+      for (const id of decision.cancelOrderIds) {
+        log.info(`   [DRY] cancel ${id}`);
+      }
     } else {
       const client = await getClobClient();
       for (const id of decision.cancelOrderIds) {
         try {
           await client.cancelOrder({ orderID: id });
           removeMakerOrder(id);
-          console.log(`   cancelled ${id}`);
+          // console.log(`   cancelled ${id}`);
+          log.info(`   CANCEL ${id}`);
           await sleep(50);
         } catch (err: any) {
-          console.error(`   cancel error ${id}:`, err.message);
+          //console.error(`   cancel error ${id}:`, err.message);
+          log.error(`   error cancel ${id}: ${err.message}`);
         }
       }
     }
@@ -313,7 +338,10 @@ async function cancelStartedMarkets(
   );
 
   if (DRY_RUN) {
-    toCancel.forEach((t) => console.log(`   [DRY] cancel ${t.orderId}`));
+    // toCancel.forEach((t) => console.log(`   [DRY] cancel ${t.orderId}`));
+    for (const t of toCancel) {
+      log.info(`   [DRY] cancel ${t.orderId}`);
+    }
     return;
   }
 
@@ -324,7 +352,8 @@ async function cancelStartedMarkets(
       removeMakerOrder(t.orderId);
       await sleep(50);
     } catch (err: any) {
-      console.error(`   cancel error ${t.orderId}:`, err.message);
+      // console.error(`   cancel error ${t.orderId}:`, err.message);
+      log.error(`   error cancel ${t.orderId}: ${err.message}`);
     }
   }
 }
@@ -334,29 +363,37 @@ async function cancelStartedMarkets(
 // ============================================================================
 
 async function runCycle(cycle: number): Promise<number> {
-  console.log(`\n${"=".repeat(70)}`);
-  console.log(`CYCLE ${cycle} — ${new Date().toISOString()}`);
-  console.log("=".repeat(70));
+  //console.log(`\n${"=".repeat(70)}`);
+  // console.log(`CYCLE ${cycle} — ${new Date().toISOString()}`);
+  log.info(`--- CYCLE ${cycle} ---`);
+  //console.log("=".repeat(70));
 
   const cycleStart = Date.now();
 
   try {
     // 1. Discover
-    console.log("\n[1] Discovering markets...");
+    // console.log("\n[1] Discovering markets...");
+    log.info("[1] discovering...");
     const markets = await discoverPolymarkets();
-    await enrichMarketsWithClobQuotes(markets);
-    console.log(`    ${markets.length} markets`);
+    //await enrichMarketsWithClobQuotes(markets); // Only enrich with live CLOB prices in live mode
+    if (!DRY_RUN) {
+      await enrichMarketsWithClobQuotes(markets);
+    }
+    // console.log(`    ${markets.length} markets`);
+    log.info(`[1] ${markets.length} markets`);
     if (markets.length === 0) return POLLING_INTERVAL_MS;
 
     // 2. Odds
     // 2. Odds
-    console.log("\n[2] Fetching odds...");
+    // console.log("\n[2] Fetching odds...");
+    log.info("[2] fetching odds...");
     let oddsData: Awaited<ReturnType<typeof fetchOddsForMarkets>>;
     try {
       oddsData = await fetchOddsForMarkets(markets);
     } catch (err) {
       if (err instanceof OddsApiQuotaError) {
-        console.warn("   [odds] quota exhausted — skipping this cycle");
+        // console.warn("   [odds] quota exhausted — skipping this cycle");
+        log.warn("[2] quota exhausted — skipping cycle");
         await evaluateExistingMakers([], new Map(), new Map(), env.bankrollUSD);
         return POLLING_INTERVAL_MS;
       }
@@ -364,15 +401,17 @@ async function runCycle(cycle: number): Promise<number> {
     }
 
     // 3. Match
-    console.log("\n[3] Matching...");
+    // console.log("\n[3] Matching...");
+    log.info("[3] matching...");
     const matched = matchMarkets(markets, oddsData);
     const matchedCount = matched.filter(
       (m) => Object.keys(m.sportsbooks).length > 0,
     ).length;
-    console.log(`    ${matchedCount}/${matched.length} matched`);
-
+    // console.log(`    ${matchedCount}/${matched.length} matched`);
+    log.info(`[3] ${matchedCount}/${matched.length} matched`);
     // 4. Capital
-    console.log("\n[4] Capital & positions...");
+    // console.log("\n[4] Capital & positions...");
+    log.info("[4] capital...");
     const wallet = await fetchWalletState();
     const rawPositions = await fetchCurrentPositions();
     const openOrders = await fetchOpenOrders();
@@ -381,8 +420,10 @@ async function runCycle(cycle: number): Promise<number> {
       rawPositions,
       openOrders,
     );
-    console.log(`    $${capital.totalCapitalUSD.toFixed(2)} total (USDC: $${capital.usdcBalance.toFixed(2)}, positions:
-  $${capital.totalPositionValueUSD.toFixed(2)})`);
+    //   console.log(`    $${capital.totalCapitalUSD.toFixed(2)} total (USDC: $${capital.usdcBalance.toFixed(2)}, positions:
+    // $${capital.totalPositionValueUSD.toFixed(2)})`);
+    log.info(`[4] capital $${capital.totalCapitalUSD.toFixed(2)} | USDC $${capital.usdcBalance.toFixed(2)} | positions
+  $${capital.totalPositionValueUSD.toFixed(2)}`);
 
     const enriched = buildEnrichedPositions(markets, rawPositions);
     const positionMap = buildPositionMap(enriched);
@@ -401,14 +442,15 @@ async function runCycle(cycle: number): Promise<number> {
     }
 
     // 5. Analyze
-    console.log("\n[5] Analyzing...");
+    //console.log("\n[5] Analyzing...");
+    log.info("[5] analyzing...");
     const bankrollForKelly =
       capital.totalCapitalUSD > 0 ? capital.totalCapitalUSD : env.bankrollUSD;
     const opps = analyzeOpportunities(matched, bankrollForKelly);
-    console.log(
-      `    ${opps.takers.length} takers, ${opps.makers.length} makers`,
-    );
-
+    // console.log(
+    //   `    ${opps.takers.length} takers, ${opps.makers.length} makers`,
+    // );
+    log.info(`[5] ${opps.takers.length} takers, ${opps.makers.length} makers`);
     // CLV update for markets within closing window
     for (const m of opps.matched) {
       if (
@@ -429,21 +471,25 @@ async function runCycle(cycle: number): Promise<number> {
     }
 
     // 6. Execute takers
-    console.log("\n[6] Takers...");
+    // console.log("\n[6] Takers...");
+    log.info("[6] takers");
     await executeTakers(opps.takers, positionMap);
 
     // 7. Place makers
-    console.log("\n[7] New makers...");
+    // console.log("\n[7] New makers...");
+    log.info("[7] makers");
     await placeNewMakers(opps.makers, positionMap);
 
     // 8. Track fills (live only)
     if (!DRY_RUN) {
-      console.log("\n[8] Tracking fills...");
+      // console.log("\n[8] Tracking fills...");
+      log.info("[8] tracking fills");
       await trackMakerFills();
     }
 
     // 9. Evaluate existing makers
-    console.log("\n[9] Evaluating makers...");
+    // console.log("\n[9] Evaluating makers...");
+    log.info("[9] evaluating makers");
     await evaluateExistingMakers(
       opps.makers,
       positionMap,
@@ -452,18 +498,23 @@ async function runCycle(cycle: number): Promise<number> {
     );
 
     // 10. Cancel started games
-    console.log("\n[10] Market states...");
+    // console.log("\n[10] Market states...");
+    log.info("[10] market states");
     await cancelStartedMarkets(markets);
 
     const elapsed = ((Date.now() - cycleStart) / 1000).toFixed(1);
-    console.log(`\n${"=".repeat(70)}`);
-    console.log(
-      `CYCLE ${cycle} done in ${elapsed}s — next in ${POLLING_INTERVAL_MS / 1000}s`,
+    //console.log(`\n${"=".repeat(70)}`);
+    // console.log(
+    //   `CYCLE ${cycle} done in ${elapsed}s — next in ${POLLING_INTERVAL_MS / 1000}s`,
+    // );
+    log.info(
+      `cycle ${cycle} done in ${elapsed}s — next in ${POLLING_INTERVAL_MS / 1000}s`,
     );
 
     return POLLING_INTERVAL_MS;
   } catch (err: any) {
-    console.error("\n[cycle error]", err.message, err.stack);
+    //console.error("\n[cycle error]", err.message, err.stack);
+    log.error({ err: err.message, stack: err.stack }, "[cycle error]");
     return POLLING_INTERVAL_MS;
   }
 }
@@ -473,22 +524,29 @@ async function runCycle(cycle: number): Promise<number> {
 // ============================================================================
 
 async function main(): Promise<void> {
-  console.log(
-    `\nPOLYBOT — mode: ${DRY_RUN ? "DRY RUN" : "LIVE"} — ${new Date().toISOString()}`,
-  );
+  // console.log(
+  //   `\nPOLYBOT — mode: ${DRY_RUN ? "DRY RUN" : "LIVE"} — ${new Date().toISOString()}`,
+  // );
+  log.info(`POLYBOT starting — mode: ${DRY_RUN ? "DRY RUN" : "LIVE"}`);
 
   if (!DRY_RUN) {
-    console.log("\nWARNING: LIVE MODE — real orders will be placed.");
-    console.log("Ctrl+C within 5 seconds to abort...\n");
+    // console.log("\nWARNING: LIVE MODE — real orders will be placed.");
+    log.warn(
+      "LIVE MODE — real orders will be placed. Ctrl+C within 5s to abort...",
+    );
+    //console.log("Ctrl+C within 5 seconds to abort...\n");
+    log.warn("Ctrl+C within 5 seconds to abort");
     await sleep(5000);
 
-    console.log("[startup] cancelling all open orders...");
+    // console.log("[startup] cancelling all open orders...");
+    log.info("[startup] cancelling all open orders...");
     const client = await getClobClient();
     await client.cancelAll();
 
     const tracked = getTrackedMakerOrders();
     for (const t of tracked) removeMakerOrder(t.orderId);
-    console.log(`[startup] cleared ${tracked.length} tracked orders`);
+    // console.log(`[startup] cleared ${tracked.length} tracked orders`);
+    log.info(`[startup] cleared ${tracked.length} tracked orders`);
   }
 
   let cycle = 1;
@@ -499,15 +557,20 @@ async function main(): Promise<void> {
 }
 
 process.on("SIGINT", () => {
-  console.log("\n[shutdown] SIGINT received");
+  // console.log("\n[shutdown] SIGINT received");
+  log.info("[shutdown] SIGINT");
+  process.exit(0);
   process.exit(0);
 });
 process.on("SIGTERM", () => {
-  console.log("\n[shutdown] SIGTERM received");
+  // console.log("\n[shutdown] SIGTERM received");
+  log.info("[shutdown] SIGTERM");
+  process.exit(0);
   process.exit(0);
 });
 
 main().catch((err) => {
-  console.error("[fatal]", err);
+  //console.error("[fatal]", err);
+  log.fatal({ err }, "[fatal]");
   process.exit(1);
 });

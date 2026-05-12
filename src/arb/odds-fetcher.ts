@@ -2,7 +2,7 @@ import axios from "axios";
 import type { OddsAPIEvent, PolymarketMarket } from "../types.js";
 import { env, BOOKMAKERS, SPORT_MAP } from "../config.js";
 import { normalizeTeam, isFirstHalf } from "../utils.js";
-
+import { log } from "../logger.js";
 export class OddsApiQuotaError extends Error {
   constructor() {
     super("Odds API usage quota exhausted");
@@ -198,14 +198,22 @@ async function fetchBaseOddsForSport(
       return { events: [], matchedEventKeys: new Map() };
     if (err.response?.data?.error_code === "OUT_OF_USAGE_CREDITS")
       throw new OddsApiQuotaError();
-    console.error(
-      `[odds] fetch failed for ${sportKey}:`,
-      err.response?.data ?? err.message,
+    // console.error(
+    //   `[odds] fetch failed for ${sportKey}:`,
+    //   err.response?.data ?? err.message,
+    // );
+    log.error(
+      { sport: sportKey, detail: err.response?.data ?? err.message },
+      "[odds] fetch failed",
     );
     return { events: [], matchedEventKeys: new Map() };
-    console.error(
-      `[odds] fetch failed for ${sportKey}:`,
-      err.response?.data ?? err.message,
+    // console.error(
+    //   `[odds] fetch failed for ${sportKey}:`,
+    //   err.response?.data ?? err.message,
+    // );
+    log.error(
+      { sport: sportKey, detail: err.response?.data ?? err.message },
+      "[odds] fetch failed",
     );
     return { events: [], matchedEventKeys: new Map() };
   }
@@ -240,8 +248,11 @@ async function fetchAndMergeAlternates(
     }
   } catch (err: any) {
     if (err.response?.status !== 404) {
-      console.warn(
-        `[odds] alternates failed for ${event.home_team} vs ${event.away_team}`,
+      // console.warn(
+      //   `[odds] alternates failed for ${event.home_team} vs ${event.away_team}`,
+      // );
+      log.warn(
+        `[odds] no alternates: ${event.home_team} vs ${event.away_team}`,
       );
     }
   }

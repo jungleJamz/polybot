@@ -2,7 +2,7 @@ import { getClobClient } from "../clients/clob.js";
 import { getTrackedMakerOrders } from "./maker-registry.js";
 import { getWagerByOrderId, saveWager, updateWagerSize } from "./operations.js";
 import type { TrackedMakerOrder } from "./maker-registry.js";
-
+import { log } from "../logger.js";
 export async function trackMakerFills(): Promise<void> {
   const tracked = getTrackedMakerOrders();
   if (tracked.length === 0) return;
@@ -35,7 +35,8 @@ export async function trackMakerFills(): Promise<void> {
       }
     }
   } catch (err: any) {
-    console.error("[tracking] fill tracking error:", err.message);
+    // console.error("[tracking] fill tracking error:", err.message);
+    log.error("[tracking] fill tracking error:", err.message);
   }
 }
 

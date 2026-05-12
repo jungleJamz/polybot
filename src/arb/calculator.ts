@@ -7,7 +7,7 @@ import {
   MAX_PER_MARKET_FRACTION,
   MAX_PER_BUCKET_FRACTION,
 } from "../config.js";
-
+import { log } from "../logger.js";
 // ============================================================================
 // STATISTICAL UTILITIES
 // ============================================================================
@@ -181,7 +181,8 @@ export function devigMoneylinePower(decimalOdds: number[]): number[] {
 
   const k = bisection(f, 0.2, 2.0);
   if (k === null) {
-    console.warn(`[devig] Power method failed, falling back to proportional`);
+    // console.warn(`[devig] Power method failed, falling back to proportional`);
+    log.warn("[devig] Power method failed, falling back to proportional");
     return q.map((qi) => qi / qSum);
   }
 
@@ -206,7 +207,8 @@ export function devigTwoWayProbit(
   const m = bisection(g, -3.0, 3.0);
 
   if (m === null) {
-    console.warn(`[devig] Probit method failed, falling back to proportional`);
+    // console.warn(`[devig] Probit method failed, falling back to proportional`);
+    log.warn("[devig] Probit method failed, falling back to proportional");
     const total = q1 + q2;
     return [q1 / total, q2 / total];
   }

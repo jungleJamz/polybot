@@ -2,6 +2,7 @@ import axios from "axios";
 import type { GammaEvent, GammaMarket, PolymarketMarket } from "../types.js";
 import { HOURS_AHEAD } from "../config.js";
 import { isFirstHalf } from "../utils.js";
+import { log } from "../logger.js";
 
 const GAMMA_BASE = "https://gamma-api.polymarket.com";
 const MAX_CONCURRENT = 5;
@@ -312,9 +313,11 @@ export async function discoverPolymarkets(): Promise<PolymarketMarket[]> {
     }
   }
 
-  console.log(`[discovery] funnel — events: ${counts.events}, no-markets: ${counts.noMarkets}, no-time: ${counts.noStartTime}, outside-window:
-  ${counts.outsideWindow}, closed: ${counts.closed}, no-bid-ask: ${counts.noBidAsk}, phantom: ${counts.phantom}, other: ${counts.other}, passed:
-  ${allMarkets.length}`);
+  // console.log(`[discovery] funnel — events: ${counts.events}, no-markets: ${counts.noMarkets}, no-time: ${counts.noStartTime}, outside-window:
+  // ${counts.outsideWindow}, closed: ${counts.closed}, no-bid-ask: ${counts.noBidAsk}, phantom: ${counts.phantom}, other: ${counts.other}, passed:
+  // ${allMarkets.length}`);
+  log.info(`[discovery] events:${counts.events} outside-window:${counts.outsideWindow} phantom:${counts.phantom} no-bid-ask:${counts.noBidAsk}
+  passed:${allMarkets.length}`);
 
   // Deduplicate by marketSlug if available, otherwise eventTitle + question
   const seen = new Set<string>();

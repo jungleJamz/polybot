@@ -5,3 +5,8 @@ dist/
 .DS_Store
 
 .prettierrc
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
