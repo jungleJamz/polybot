@@ -7,5 +7,6 @@
     "strict": true,
 
     "types": ["node"]
-  }
+  },
+  "exclude": ["ui", "node_modules"]
 }

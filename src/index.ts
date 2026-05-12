@@ -8,6 +8,9 @@ import { fetchBestPricesForTokens } from "./arb/orderbook.js";
 import { executeTakerOrder, placeMakerOrder } from "./arb/execution.js";
 import { evaluateMakerOrders } from "./arb/maker-management.js";
 import { fetchWalletState } from "./clients/wallet.js";
+import { state, addLog } from "./ui/state.js";
+import { startUI } from "./ui/server.js";
+
 import { log } from "./logger.js";
 import {
   fetchCurrentPositions,
@@ -30,8 +33,6 @@ import { fetchOddsForMarkets, OddsApiQuotaError } from "./arb/odds-fetcher.js";
 // ============================================================================
 // STARTUP
 // ============================================================================
-
-validateEnv();
 
 const DRY_RUN = env.dryRun;
 const POLLING_INTERVAL_MS = env.pollingIntervalMs;
@@ -379,9 +380,11 @@ async function runCycle(cycle: number): Promise<number> {
     if (!DRY_RUN) {
       await enrichMarketsWithClobQuotes(markets);
     }
+    // [1] markets log:
     // console.log(`    ${markets.length} markets`);
     log.info(`[1] ${markets.length} markets`);
     if (markets.length === 0) return POLLING_INTERVAL_MS;
+    state.discovery = { events: 0, markets: markets.length };
 
     // 2. Odds
     // 2. Odds
@@ -394,6 +397,8 @@ async function runCycle(cycle: number): Promise<number> {
       if (err instanceof OddsApiQuotaError) {
         // console.warn("   [odds] quota exhausted — skipping this cycle");
         log.warn("[2] quota exhausted — skipping cycle");
+        state.quotaExhausted = true; // ← add this
+        addLog("Odds API quota exhausted"); // ← add this
         await evaluateExistingMakers([], new Map(), new Map(), env.bankrollUSD);
         return POLLING_INTERVAL_MS;
       }
@@ -407,8 +412,10 @@ async function runCycle(cycle: number): Promise<number> {
     const matchedCount = matched.filter(
       (m) => Object.keys(m.sportsbooks).length > 0,
     ).length;
+    //[2]  matched log
     // console.log(`    ${matchedCount}/${matched.length} matched`);
     log.info(`[3] ${matchedCount}/${matched.length} matched`);
+    state.matching = { matched: matchedCount, total: matched.length };
     // 4. Capital
     // console.log("\n[4] Capital & positions...");
     log.info("[4] capital...");
@@ -420,10 +427,16 @@ async function runCycle(cycle: number): Promise<number> {
       rawPositions,
       openOrders,
     );
+    //[4]capital log
     //   console.log(`    $${capital.totalCapitalUSD.toFixed(2)} total (USDC: $${capital.usdcBalance.toFixed(2)}, positions:
     // $${capital.totalPositionValueUSD.toFixed(2)})`);
     log.info(`[4] capital $${capital.totalCapitalUSD.toFixed(2)} | USDC $${capital.usdcBalance.toFixed(2)} | positions
   $${capital.totalPositionValueUSD.toFixed(2)}`);
+    state.capital = {
+      total: capital.totalCapitalUSD,
+      usdc: capital.usdcBalance,
+      positions: capital.totalPositionValueUSD,
+    };
 
     const enriched = buildEnrichedPositions(markets, rawPositions);
     const positionMap = buildPositionMap(enriched);
@@ -441,7 +454,7 @@ async function runCycle(cycle: number): Promise<number> {
       );
     }
 
-    // 5. Analyze
+    // [5]. Analyze log
     //console.log("\n[5] Analyzing...");
     log.info("[5] analyzing...");
     const bankrollForKelly =
@@ -451,6 +464,19 @@ async function runCycle(cycle: number): Promise<number> {
     //   `    ${opps.takers.length} takers, ${opps.makers.length} makers`,
     // );
     log.info(`[5] ${opps.takers.length} takers, ${opps.makers.length} makers`);
+    state.takers = opps.takers.map((t) => ({
+      slug: t.marketSlug,
+      ev: t.ev,
+      size: t.kellySize.constrainedShares,
+      price: t.polymarketAsk,
+    }));
+    state.makers = opps.makers.map((m) => ({
+      slug: m.marketSlug,
+      ev: m.ev,
+      size: m.kellySize.constrainedShares,
+      price: m.targetPrice,
+    }));
+
     // CLV update for markets within closing window
     for (const m of opps.matched) {
       if (
@@ -490,6 +516,7 @@ async function runCycle(cycle: number): Promise<number> {
     // 9. Evaluate existing makers
     // console.log("\n[9] Evaluating makers...");
     log.info("[9] evaluating makers");
+
     await evaluateExistingMakers(
       opps.makers,
       positionMap,
@@ -510,6 +537,13 @@ async function runCycle(cycle: number): Promise<number> {
     log.info(
       `cycle ${cycle} done in ${elapsed}s — next in ${POLLING_INTERVAL_MS / 1000}s`,
     );
+    state.cycleNumber = cycle;
+    state.lastCycleAt = new Date().toISOString();
+    state.lastCycleSec = parseFloat(elapsed);
+    state.quotaExhausted = false;
+    addLog(
+      `Cycle ${cycle} — ${opps.takers.length} takers, ${opps.makers.length} makers in ${elapsed}s`,
+    );
 
     return POLLING_INTERVAL_MS;
   } catch (err: any) {
@@ -524,9 +558,9 @@ async function runCycle(cycle: number): Promise<number> {
 // ============================================================================
 
 async function main(): Promise<void> {
-  // console.log(
-  //   `\nPOLYBOT — mode: ${DRY_RUN ? "DRY RUN" : "LIVE"} — ${new Date().toISOString()}`,
-  // );
+  validateEnv();
+  state.mode = DRY_RUN ? "DRY RUN" : "LIVE";
+  startUI();
   log.info(`POLYBOT starting — mode: ${DRY_RUN ? "DRY RUN" : "LIVE"}`);
 
   if (!DRY_RUN) {
