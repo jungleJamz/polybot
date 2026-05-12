@@ -13,7 +13,7 @@ import type { PolymarketMarket } from "../src/types.js";
 
 function makeMarket(overrides: Partial<PolymarketMarket>): PolymarketMarket {
   return {
-    marketId: "test-id",
+    // marketId: "test-id",
     conditionId: "0xabc",
     marketSlug: "bills-chiefs-ml",
     eventSlug: "bills-vs-chiefs-2024-01-21",

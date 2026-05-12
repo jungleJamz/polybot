@@ -12,7 +12,7 @@ function makeMarket(
   overrides: Partial<PolymarketMarket> = {},
 ): PolymarketMarket {
   return {
-    marketId: "test-id",
+    // marketId: "test-id",
     conditionId: "0xabc",
     marketSlug: "bills-chiefs-ml",
     eventSlug: "bills-vs-chiefs",
@@ -252,10 +252,10 @@ describe("matchMarkets — sport isolation", () => {
   });
 
   it("matches multiple sports in one call", () => {
-    const nflMarket = makeMarket({ sport: "nfl", marketId: "1" });
+    const nflMarket = makeMarket({ sport: "nfl" });
     const nbaMarket = makeMarket({
       sport: "nba",
-      marketId: "2",
+      // marketId: "2",
       homeTeam: "Lakers",
       awayTeam: "Celtics",
       outcome1Name: "Lakers",

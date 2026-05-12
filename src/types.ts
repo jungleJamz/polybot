@@ -13,6 +13,8 @@ export interface GammaEvent {
   closed?: boolean | null;
   active?: boolean | null;
   markets?: GammaMarket[];
+  startTime?: string | null;
+  eventDate?: string | null;
   tags?: Array<{ id: string; label: string; slug: string }> | null;
 }
 
@@ -35,6 +37,9 @@ export interface GammaMarket {
   negRisk?: boolean | null;
   orderPriceMinTickSize?: number | null;
   orderMinSize?: number | null;
+  liquidityClob?: number | null;
+  liquidityAmm?: number | null;
+  liquidity?: string | null; // sometimes returned as a string, not a number
 }
 
 export interface OddsAPIOutcome {
@@ -68,10 +73,10 @@ export interface OddsAPIEvent {
 
 export interface PolymarketMarket {
   // identity
-  marketId: string;
-  conditionId: string;
-  marketSlug: string;
-  eventSlug: string;
+  // marketId: string;
+  conditionId?: string;
+  marketSlug?: string;
+  eventSlug?: string;
   eventTitle: string;
   marketQuestion: string;
   sport: string;
@@ -85,11 +90,11 @@ export interface PolymarketMarket {
   awayTeam?: string;
 
   // CLOB trading fields (required — enriched by CLOB API)
-  tokenId1: string; // YES token
-  tokenId2: string; // NO token
-  negRisk: boolean;
-  tickSize: number;
-  minOrderSize: number;
+  tokenId1?: string; // YES token
+  tokenId2?: string; // NO token
+  negRisk?: boolean;
+  tickSize?: number;
+  minOrderSize?: number;
 
   // current market prices
   bestBid1?: number; // YES side best bid
@@ -102,8 +107,11 @@ export interface PolymarketMarket {
   liquidity: number;
 
   // outcome labels
-  outcome1Name: string; // e.g. "Kansas City Chiefs"
-  outcome2Name: string; // e.g. "Buffalo Bills"
+  outcome1Name?: string; // e.g. "Kansas City Chiefs"
+  outcome2Name?: string; // e.g. "Buffalo Bills"
+
+  playerName?: string;
+  playerLine?: number;
 }
 
 export interface KellySize {

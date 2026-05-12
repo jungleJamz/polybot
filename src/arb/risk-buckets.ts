@@ -16,7 +16,7 @@ export function getCorrelationBucketKey(
   market: PolymarketMarket,
   outcome: OutcomeIndex,
 ): string {
-  const event = normalizeBucketPart(market.eventSlug);
+  const event = normalizeBucketPart(market.eventSlug ?? market.eventTitle);
   const scope = getBaseScope(market.marketType);
   const base = `event:${event}:scope:${scope}`;
 
@@ -25,6 +25,6 @@ export function getCorrelationBucketKey(
   }
 
   const teamName = outcome === 1 ? market.outcome1Name : market.outcome2Name;
-  const team = normalizeBucketPart(teamName);
+  const team = normalizeBucketPart(teamName ?? "");
   return `${base}:side:${team || "unknown"}`;
 }
