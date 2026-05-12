@@ -46,6 +46,7 @@ export interface OddsAPIOutcome {
   name: string;
   price: number; // American odds e.g. -110, +220
   point?: number; // Spread/total line e.g. -3.5, 47.5
+  description?: string; // player name for player prop outcomes
 }
 
 export interface OddsAPIMarket {
