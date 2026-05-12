@@ -8,8 +8,10 @@ import type { PolymarketMarket, OddsAPIEvent } from "../src/types.js";
 // Fixture builders
 // ---------------------------------------------------------------------------
 
-function makeMarket(overrides: Partial<PolymarketMarket> = {}): PolymarketMarket {
-return {
+function makeMarket(
+  overrides: Partial<PolymarketMarket> = {},
+): PolymarketMarket {
+  return {
     marketId: "test-id",
     conditionId: "0xabc",
     marketSlug: "bills-chiefs-ml",
@@ -30,11 +32,11 @@ return {
     outcome1Name: "Buffalo Bills",
     outcome2Name: "Kansas City Chiefs",
     ...overrides,
-};
+  };
 }
 
 function makeOddsEvent(overrides: Partial<OddsAPIEvent> = {}): OddsAPIEvent {
-return {
+  return {
     id: "event-123",
     sport_key: "americanfootball_nfl",
     sport_title: "NFL",
@@ -42,24 +44,24 @@ return {
     home_team: "Buffalo Bills",
     away_team: "Kansas City Chiefs",
     bookmakers: [
-    {
+      {
         key: "pinnacle",
         title: "Pinnacle",
         last_update: "2024-01-21T12:00:00Z",
         markets: [
-        {
+          {
             key: "h2h",
             last_update: "2024-01-21T12:00:00Z",
             outcomes: [
-            { name: "Buffalo Bills", price: -110 },
-            { name: "Kansas City Chiefs", price: -110 },
+              { name: "Buffalo Bills", price: -110 },
+              { name: "Kansas City Chiefs", price: -110 },
             ],
-        },
+          },
         ],
-    },
+      },
     ],
     ...overrides,
-};
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -67,46 +69,58 @@ return {
 // ---------------------------------------------------------------------------
 
 describe("matchMarkets — team matching", () => {
-it("matches exact team names", () => {
+  it("matches exact team names", () => {
     const market = makeMarket();
     const event = makeOddsEvent();
     const [result] = matchMarkets([market], { nfl: [event] });
     assert.ok(result);
     assert.ok(!result.skipReason, `unexpected skip: ${result.skipReason}`);
     assert.ok("pinnacle" in result.sportsbooks);
-});
+  });
 
-it("matches when Polymarket and Odds API have home/away swapped", () => {
-    const market = makeMarket({ homeTeam: "Buffalo Bills", awayTeam: "Kansas City Chiefs" });
-    const event = makeOddsEvent({ home_team: "Kansas City Chiefs", away_team: "Buffalo Bills" });
+  it("matches when Polymarket and Odds API have home/away swapped", () => {
+    const market = makeMarket({
+      homeTeam: "Buffalo Bills",
+      awayTeam: "Kansas City Chiefs",
+    });
+    const event = makeOddsEvent({
+      home_team: "Kansas City Chiefs",
+      away_team: "Buffalo Bills",
+    });
     const [result] = matchMarkets([market], { nfl: [event] });
-    assert.ok(!result.skipReason, `should match reversed: ${result.skipReason}`);
-});
+    assert.ok(
+      !result.skipReason,
+      `should match reversed: ${result.skipReason}`,
+    );
+  });
 
-it("matches partial team names (Bills vs Buffalo Bills)", () => {
+  it("matches partial team names (Bills vs Buffalo Bills)", () => {
     const market = makeMarket({ homeTeam: "Bills" });
     const event = makeOddsEvent({ home_team: "Buffalo Bills" });
     const [result] = matchMarkets([market], { nfl: [event] });
     assert.ok(!result.skipReason, `should fuzzy match: ${result.skipReason}`);
-});
+  });
 
-it("skips when no matching event found", () => {
-    const market = makeMarket({ homeTeam: "Dallas Cowboys", awayTeam: "New York Giants" });
+  it("skips when no matching event found", () => {
+    const market = makeMarket({
+      homeTeam: "Dallas Cowboys",
+      awayTeam: "New York Giants",
+    });
     const event = makeOddsEvent(); // Bills vs Chiefs
     const [result] = matchMarkets([market], { nfl: [event] });
     assert.equal(result.skipReason, "Event not found in sportsbooks");
-});
+  });
 
-it("skips when market has no team names", () => {
+  it("skips when market has no team names", () => {
     const market = makeMarket({ homeTeam: undefined, awayTeam: undefined });
     const [result] = matchMarkets([market], { nfl: [] });
     assert.equal(result.skipReason, "No team names");
-});
+  });
 
-it("returns empty results for empty market list", () => {
+  it("returns empty results for empty market list", () => {
     const results = matchMarkets([], { nfl: [] });
     assert.equal(results.length, 0);
-});
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -114,54 +128,64 @@ it("returns empty results for empty market list", () => {
 // ---------------------------------------------------------------------------
 
 describe("matchMarkets — spread line matching", () => {
-function makeSpreadEvent(line: number): OddsAPIEvent {
+  function makeSpreadEvent(line: number): OddsAPIEvent {
     return makeOddsEvent({
-    bookmakers: [{
-        key: "pinnacle",
-        title: "Pinnacle",
-        last_update: "2024-01-21T12:00:00Z",
-        markets: [{
-        key: "spreads",
-        last_update: "2024-01-21T12:00:00Z",
-        outcomes: [
-            { name: "Buffalo Bills", price: -110, point: line },
-            { name: "Kansas City Chiefs", price: -110, point: -line },
-        ],
-        }],
-    }],
+      bookmakers: [
+        {
+          key: "pinnacle",
+          title: "Pinnacle",
+          last_update: "2024-01-21T12:00:00Z",
+          markets: [
+            {
+              key: "spreads",
+              last_update: "2024-01-21T12:00:00Z",
+              outcomes: [
+                { name: "Buffalo Bills", price: -110, point: line },
+                { name: "Kansas City Chiefs", price: -110, point: -line },
+              ],
+            },
+          ],
+        },
+      ],
     });
-}
+  }
 
-it("matches when spread line exactly matches", () => {
+  it("matches when spread line exactly matches", () => {
     const market = makeMarket({
-    marketType: "spreads",
-    marketQuestion: "Bills spread (-3.5)",
+      marketType: "spreads",
+      marketQuestion: "Bills spread (-3.5)",
     });
     const event = makeSpreadEvent(3.5);
     const [result] = matchMarkets([market], { nfl: [event] });
     assert.ok(!result.skipReason, `unexpected skip: ${result.skipReason}`);
     assert.ok("pinnacle" in result.sportsbooks);
-});
+  });
 
-it("skips when spread line does not match", () => {
+  it("skips when spread line does not match", () => {
     const market = makeMarket({
-    marketType: "spreads",
-    marketQuestion: "Bills spread (-7.5)",
+      marketType: "spreads",
+      marketQuestion: "Bills spread (-7.5)",
     });
     const event = makeSpreadEvent(3.5); // book has -3.5, not -7.5
     const [result] = matchMarkets([market], { nfl: [event] });
-    assert.ok(result.skipReason?.includes("7.5"), `expected line mismatch: ${result.skipReason}`);
-});
+    assert.ok(
+      result.skipReason?.includes("7.5"),
+      `expected line mismatch: ${result.skipReason}`,
+    );
+  });
 
-it("skips when spread line cannot be extracted from question", () => {
+  it("skips when spread line cannot be extracted from question", () => {
     const market = makeMarket({
-    marketType: "spreads",
-    marketQuestion: "Will the Bills cover?", // no line in text
+      marketType: "spreads",
+      marketQuestion: "Will the Bills cover?", // no line in text
     });
     const event = makeSpreadEvent(3.5);
     const [result] = matchMarkets([market], { nfl: [event] });
-    assert.ok(result.skipReason?.includes("extract"), `expected extract error: ${result.skipReason}`);
-});
+    assert.ok(
+      result.skipReason?.includes("extract"),
+      `expected extract error: ${result.skipReason}`,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -169,43 +193,50 @@ it("skips when spread line cannot be extracted from question", () => {
 // ---------------------------------------------------------------------------
 
 describe("matchMarkets — totals line matching", () => {
-function makeTotalsEvent(line: number): OddsAPIEvent {
+  function makeTotalsEvent(line: number): OddsAPIEvent {
     return makeOddsEvent({
-    bookmakers: [{
-        key: "pinnacle",
-        title: "Pinnacle",
-        last_update: "2024-01-21T12:00:00Z",
-        markets: [{
-        key: "totals",
-        last_update: "2024-01-21T12:00:00Z",
-        outcomes: [
-            { name: "Over", price: -110, point: line },
-            { name: "Under", price: -110, point: line },
-        ],
-        }],
-    }],
+      bookmakers: [
+        {
+          key: "pinnacle",
+          title: "Pinnacle",
+          last_update: "2024-01-21T12:00:00Z",
+          markets: [
+            {
+              key: "totals",
+              last_update: "2024-01-21T12:00:00Z",
+              outcomes: [
+                { name: "Over", price: -110, point: line },
+                { name: "Under", price: -110, point: line },
+              ],
+            },
+          ],
+        },
+      ],
     });
-}
+  }
 
-it("matches when total line exactly matches", () => {
+  it("matches when total line exactly matches", () => {
     const market = makeMarket({
-    marketType: "totals",
-    marketQuestion: "Will total points be o/u 47.5?",
+      marketType: "totals",
+      marketQuestion: "Will total points be o/u 47.5?",
     });
     const event = makeTotalsEvent(47.5);
     const [result] = matchMarkets([market], { nfl: [event] });
     assert.ok(!result.skipReason, `unexpected skip: ${result.skipReason}`);
-});
+  });
 
-it("skips when total line does not match", () => {
+  it("skips when total line does not match", () => {
     const market = makeMarket({
-    marketType: "totals",
-    marketQuestion: "Will total points be o/u 51.5?",
+      marketType: "totals",
+      marketQuestion: "Will total points be o/u 51.5?",
     });
     const event = makeTotalsEvent(47.5);
     const [result] = matchMarkets([market], { nfl: [event] });
-    assert.ok(result.skipReason?.includes("51.5"), `expected line mismatch: ${result.skipReason}`);
-});
+    assert.ok(
+      result.skipReason?.includes("51.5"),
+      `expected line mismatch: ${result.skipReason}`,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -213,36 +244,36 @@ it("skips when total line does not match", () => {
 // ---------------------------------------------------------------------------
 
 describe("matchMarkets — sport isolation", () => {
-it("does not match NFL markets against NBA events", () => {
+  it("does not match NFL markets against NBA events", () => {
     const market = makeMarket({ sport: "nfl" });
     const nbaEvent = makeOddsEvent(); // same team names but wrong sport
     const [result] = matchMarkets([market], { nba: [nbaEvent] });
     assert.equal(result.skipReason, "Event not found in sportsbooks");
-});
+  });
 
-it("matches multiple sports in one call", () => {
+  it("matches multiple sports in one call", () => {
     const nflMarket = makeMarket({ sport: "nfl", marketId: "1" });
     const nbaMarket = makeMarket({
-    sport: "nba",
-    marketId: "2",
-    homeTeam: "Lakers",
-    awayTeam: "Celtics",
-    outcome1Name: "Lakers",
-    outcome2Name: "Celtics",
+      sport: "nba",
+      marketId: "2",
+      homeTeam: "Lakers",
+      awayTeam: "Celtics",
+      outcome1Name: "Lakers",
+      outcome2Name: "Celtics",
     });
     const nbaEvent = makeOddsEvent({
-    sport_key: "basketball_nba",
-    home_team: "Lakers",
-    away_team: "Celtics",
+      sport_key: "basketball_nba",
+      home_team: "Lakers",
+      away_team: "Celtics",
     });
-    const results = matchMarkets(
-    [nflMarket, nbaMarket],
-    { nfl: [makeOddsEvent()], nba: [nbaEvent] }
-    );
+    const results = matchMarkets([nflMarket, nbaMarket], {
+      nfl: [makeOddsEvent()],
+      nba: [nbaEvent],
+    });
     assert.equal(results.length, 2);
     assert.ok(!results[0]?.skipReason);
     assert.ok(!results[1]?.skipReason);
-});
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -250,33 +281,35 @@ it("matches multiple sports in one call", () => {
 // ---------------------------------------------------------------------------
 
 describe("matchMarkets — bookmaker filtering", () => {
-it("only includes known bookmakers", () => {
+  it("only includes known bookmakers", () => {
     const market = makeMarket();
     const event = makeOddsEvent({
-    bookmakers: [
+      bookmakers: [
         {
-        key: "pinnacle",
-        title: "Pinnacle",
-        last_update: "2024-01-21T12:00:00Z",
-        markets: [{
-            key: "h2h",
-            last_update: "2024-01-21T12:00:00Z",
-            outcomes: [
-            { name: "Buffalo Bills", price: -110 },
-            { name: "Kansas City Chiefs", price: -110 },
-            ],
-        }],
+          key: "pinnacle",
+          title: "Pinnacle",
+          last_update: "2024-01-21T12:00:00Z",
+          markets: [
+            {
+              key: "h2h",
+              last_update: "2024-01-21T12:00:00Z",
+              outcomes: [
+                { name: "Buffalo Bills", price: -110 },
+                { name: "Kansas City Chiefs", price: -110 },
+              ],
+            },
+          ],
         },
         {
-        key: "some_unknown_book",
-        title: "Unknown",
-        last_update: "2024-01-21T12:00:00Z",
-        markets: [],
+          key: "some_unknown_book",
+          title: "Unknown",
+          last_update: "2024-01-21T12:00:00Z",
+          markets: [],
         },
-    ],
+      ],
     });
     const [result] = matchMarkets([market], { nfl: [event] });
     assert.ok("pinnacle" in result.sportsbooks);
     assert.ok(!("some_unknown_book" in result.sportsbooks));
-});
+  });
 });

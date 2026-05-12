@@ -1,15 +1,12 @@
 import type { KellySize, MarketType } from "../types.js";
 import {
-    BOOKMAKER_WEIGHTS,
-    MAKER_MARGINS,
-    TAKER_MARGINS,
-    KELLY_MULTIPLIER,
-    MAX_PER_MARKET_FRACTION,
-    MAX_PER_BUCKET_FRACTION,
+  BOOKMAKER_WEIGHTS,
+  MAKER_MARGINS,
+  TAKER_MARGINS,
+  KELLY_MULTIPLIER,
+  MAX_PER_MARKET_FRACTION,
+  MAX_PER_BUCKET_FRACTION,
 } from "../config.js";
-
-
-
 
 // ============================================================================
 // STATISTICAL UTILITIES
@@ -90,7 +87,6 @@ function invNormCdf(p: number): number {
   }
 }
 
-
 /**
  * Bisection root-finding method
  */
@@ -128,7 +124,6 @@ function bisection(
   return (a + b) / 2; // Return midpoint if max iterations reached
 }
 
-
 // ============================================================================
 // ODDS CONVERSION
 // ============================================================================
@@ -141,7 +136,6 @@ export function americanToDecimal(americanOdds: number): number {
     return 100 / Math.abs(americanOdds) + 1;
   }
 }
-
 
 //Convert decimal --> implied probability (raw, with vig)
 export function decimalToImpliedProb(decimalOdds: number): number {
@@ -163,7 +157,7 @@ export function americanToImpliedProb(americanOdds: number): number {
 export function decimalToAmerican(decimalOdds: number): number {
   if (decimalOdds < 1.01) {
     throw new Error(
-      `decimalToAmerican requires decimalOdds >= 1.01, got ${decimalOdds}`
+      `decimalToAmerican requires decimalOdds >= 1.01, got ${decimalOdds}`,
     );
   }
   // Favorite
@@ -196,7 +190,10 @@ export function devigMoneylinePower(decimalOdds: number[]): number[] {
   return powered.map((p) => p / Z);
 }
 
-export function devigTwoWayProbit(odds1: number, odds2: number): [number, number] {
+export function devigTwoWayProbit(
+  odds1: number,
+  odds2: number,
+): [number, number] {
   let q1 = Math.max(1e-6, Math.min(1 - 1e-6, decimalToImpliedProb(odds1)));
   let q2 = Math.max(1e-6, Math.min(1 - 1e-6, decimalToImpliedProb(odds2)));
 
@@ -263,8 +260,7 @@ export function calculateWeightedConsensus(
   }
 
   for (const bookmaker in normalizedWeights) {
-    normalizedWeights[bookmaker] =
-      normalizedWeights[bookmaker]! / totalWeight;
+    normalizedWeights[bookmaker] = normalizedWeights[bookmaker]! / totalWeight;
   }
 
   // ---------------------------------------------------------------------------
@@ -274,11 +270,7 @@ export function calculateWeightedConsensus(
   let weightedFair1 = 0;
   let weightedFair2 = 0;
 
-  for (const {
-    bookmaker,
-    outcome1Price,
-    outcome2Price,
-  } of bookmakerOdds) {
+  for (const { bookmaker, outcome1Price, outcome2Price } of bookmakerOdds) {
     const weight = normalizedWeights[bookmaker];
 
     if (!weight) {
@@ -318,8 +310,8 @@ export function calculateWeightedConsensus(
 // ============================================================================
 
 export function calculateEV(fairProb: number, price: number): number | null {
-    if (fairProb <= 0) return null;
-    return (fairProb - price) / fairProb;
+  if (fairProb <= 0) return null;
+  return (fairProb - price) / fairProb;
 }
 
 /**
@@ -349,11 +341,9 @@ export function calculateKellySize(
   const maxPerBucketUSD = bankrollUSD * MAX_PER_BUCKET_FRACTION;
 
   // Remaining capacity
-  const remainingMarketRoomUSD =
-    maxPerMarketUSD - currentMarketExposureUSD;
+  const remainingMarketRoomUSD = maxPerMarketUSD - currentMarketExposureUSD;
 
-  const remainingBucketRoomUSD =
-    maxPerBucketUSD - currentBucketExposureUSD;
+  const remainingBucketRoomUSD = maxPerBucketUSD - currentBucketExposureUSD;
 
   // Start with raw Kelly size
   let constrainedSizeUSD = rawKellySizeUSD;
@@ -397,18 +387,17 @@ export function calculateKellySize(
 /**
  * Get maker margin range for market type
  */
-export function getMarginRange(
-  marketType: MarketType,
-): { min: number; max: number } {
+export function getMarginRange(marketType: MarketType): {
+  min: number;
+  max: number;
+} {
   return MAKER_MARGINS[marketType];
 }
 
 /**
  * Get taker minimum EV threshold
  */
-export function getTakerMinimum(
-  marketType: MarketType,
-): number {
+export function getTakerMinimum(marketType: MarketType): number {
   return TAKER_MARGINS[marketType];
 }
 
