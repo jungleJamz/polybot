@@ -22,14 +22,26 @@ async function initClobClient(): Promise<ClobClient> {
     env.proxyWallet,
   );
 
-  // deriveApiKey is deterministic — given the same private key it always
-  // returns the same key, so we prefer it over createApiKey which errors
-  // with a noisy 400 if the key already exists.
+  // SDK has throwOnError=false by default — API errors return { key: undefined, ... }
+  // instead of throwing. We must check creds are valid before using them.
   let creds: any;
   try {
     creds = await unauthClient.deriveApiKey();
   } catch {
-    creds = await unauthClient.createOrDeriveApiKey();
+    // deriveApiKey threw — try createOrDeriveApiKey as fallback
+  }
+
+  if (!creds?.secret) {
+    // Either threw or returned an error response (first-time wallet needs create)
+    try {
+      creds = await unauthClient.createOrDeriveApiKey();
+    } catch (err: any) {
+      throw new Error(`Failed to obtain CLOB API credentials: ${err.message}`);
+    }
+  }
+
+  if (!creds?.secret) {
+    throw new Error(`CLOB credentials missing secret. Response: ${JSON.stringify(creds)}`);
   }
 
   // Second pass: reconstruct with creds so all subsequent calls are authenticated

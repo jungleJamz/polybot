@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { validateEnv, env, TAKER_MIN_BOOKMAKERS } from "./config.js";
 import { discoverPolymarkets } from "./arb/discovery.js";
-import { fetchOddsForMarkets } from "./arb/odds-fetcher.js";
 import { matchMarkets } from "./arb/matcher.js";
 import { analyzeOpportunities } from "./arb/analyzer.js";
 import { enrichMarketsWithClobQuotes } from "./arb/orderbook.js";
@@ -26,7 +25,7 @@ import { saveWager, updateWagerCLV } from "./storage/operations.js";
 import { trackMakerFills } from "./storage/tracking.js";
 import type { TakerOpportunity, MakerOpportunity } from "./types.js";
 import type { EnrichedPosition } from "./clients/positions.js";
-
+import { fetchOddsForMarkets, OddsApiQuotaError } from "./arb/odds-fetcher.js";
 // ============================================================================
 // STARTUP
 // ============================================================================
@@ -350,8 +349,19 @@ async function runCycle(cycle: number): Promise<number> {
     if (markets.length === 0) return POLLING_INTERVAL_MS;
 
     // 2. Odds
+    // 2. Odds
     console.log("\n[2] Fetching odds...");
-    const oddsData = await fetchOddsForMarkets(markets);
+    let oddsData: Awaited<ReturnType<typeof fetchOddsForMarkets>>;
+    try {
+      oddsData = await fetchOddsForMarkets(markets);
+    } catch (err) {
+      if (err instanceof OddsApiQuotaError) {
+        console.warn("   [odds] quota exhausted — skipping this cycle");
+        await evaluateExistingMakers([], new Map(), new Map(), env.bankrollUSD);
+        return POLLING_INTERVAL_MS;
+      }
+      throw err;
+    }
 
     // 3. Match
     console.log("\n[3] Matching...");
@@ -392,7 +402,9 @@ async function runCycle(cycle: number): Promise<number> {
 
     // 5. Analyze
     console.log("\n[5] Analyzing...");
-    const opps = analyzeOpportunities(matched, capital.totalCapitalUSD);
+    const bankrollForKelly =
+      capital.totalCapitalUSD > 0 ? capital.totalCapitalUSD : env.bankrollUSD;
+    const opps = analyzeOpportunities(matched, bankrollForKelly);
     console.log(
       `    ${opps.takers.length} takers, ${opps.makers.length} makers`,
     );

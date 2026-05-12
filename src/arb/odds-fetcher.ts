@@ -3,6 +3,13 @@ import type { OddsAPIEvent, PolymarketMarket } from "../types.js";
 import { env, BOOKMAKERS, SPORT_MAP } from "../config.js";
 import { normalizeTeam, isFirstHalf } from "../utils.js";
 
+export class OddsApiQuotaError extends Error {
+  constructor() {
+    super("Odds API usage quota exhausted");
+    this.name = "OddsApiQuotaError";
+  }
+}
+
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
 
 // 8 concurrent + 50ms spacing → ~20 req/sec
@@ -189,6 +196,13 @@ async function fetchBaseOddsForSport(
   } catch (err: any) {
     if (err.response?.status === 404)
       return { events: [], matchedEventKeys: new Map() };
+    if (err.response?.data?.error_code === "OUT_OF_USAGE_CREDITS")
+      throw new OddsApiQuotaError();
+    console.error(
+      `[odds] fetch failed for ${sportKey}:`,
+      err.response?.data ?? err.message,
+    );
+    return { events: [], matchedEventKeys: new Map() };
     console.error(
       `[odds] fetch failed for ${sportKey}:`,
       err.response?.data ?? err.message,
