@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { log } from "./logger.js";
+import { privateKeyToAccount } from "viem/accounts";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -69,18 +70,8 @@ if (!/^[0-9a-fA-F]{64}$/.test(stripped)) {
 }
 
 const POLY_PRIVATE_KEY = `0x${stripped}`;
+const POLY_ADDRESS = privateKeyToAccount(POLY_PRIVATE_KEY as `0x${string}`).address;
 
-const POLY_PROXY_WALLET = getRequired("POLY_PROXY_WALLET");
-
-if (!POLY_PROXY_WALLET.startsWith("0x")) {
-  throw new Error("POLY_PROXY_WALLET must start with 0x");
-}
-
-if (POLY_PROXY_WALLET.length !== 42) {
-  throw new Error(
-    `POLY_PROXY_WALLET must be 42 characters, got ${POLY_PROXY_WALLET.length}`,
-  );
-}
 
 const ODDS_API_KEY = getRequired("ODDS_API_KEY");
 
@@ -98,10 +89,12 @@ if (!Number.isFinite(BANKROLL_USD) || BANKROLL_USD <= 0) {
 
 export const env = {
   polyPrivateKey: POLY_PRIVATE_KEY,
-  proxyWallet: POLY_PROXY_WALLET,
+  polyAddress: POLY_ADDRESS,
   oddsApiKey: ODDS_API_KEY,
 
   bankrollUSD: BANKROLL_USD,
+
+  polySignatureType: getNumber("POLY_SIGNATURE_TYPE", 3),
 
   dryRun: getBoolean("DRY_RUN", true),
   verbose: getBoolean("VERBOSE", false),

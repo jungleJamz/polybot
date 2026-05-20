@@ -48,7 +48,7 @@ export async function fetchOpenOrders(
 export async function fetchCurrentPositions(
   userAddress?: string,
 ): Promise<RawPosition[]> {
-  const user = userAddress?.trim() || env.proxyWallet;
+  const user = userAddress?.trim() || env.polyAddress;
   const { data } = await axios.get<RawPosition[]>(
     `${env.dataApiUrl}/positions`,
     {

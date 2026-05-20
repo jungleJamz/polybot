@@ -12,27 +12,21 @@ async function initClobClient(): Promise<ClobClient> {
     transport: http(),
   });
 
-  // First pass: no creds — used only to derive the API key
-  const unauthClient = new ClobClient(
-    env.clobApiUrl,
-    Chain.POLYGON,
-    walletClient,
-    undefined,
-    2 as any,
-    env.proxyWallet,
-  );
+  // Polymarket account type 3 — the "deposit wallet" account type used by
+  // accounts created via the web UI. Types 0/1/2 return 0 balance for these accounts.
+  const SIG_TYPE = env.polySignatureType as any;
 
-  // SDK has throwOnError=false by default — API errors return { key: undefined, ... }
-  // instead of throwing. We must check creds are valid before using them.
+  // First pass: no creds — used only to derive the API key
+  const unauthClient = new ClobClient(env.clobApiUrl, Chain.POLYGON, walletClient, undefined, SIG_TYPE);
+
   let creds: any;
   try {
     creds = await unauthClient.deriveApiKey();
   } catch {
-    // deriveApiKey threw — try createOrDeriveApiKey as fallback
+    // First-time wallet — fall back to create
   }
 
   if (!creds?.secret) {
-    // Either threw or returned an error response (first-time wallet needs create)
     try {
       creds = await unauthClient.createOrDeriveApiKey();
     } catch (err: any) {
@@ -44,15 +38,8 @@ async function initClobClient(): Promise<ClobClient> {
     throw new Error(`CLOB credentials missing secret. Response: ${JSON.stringify(creds)}`);
   }
 
-  // Second pass: reconstruct with creds so all subsequent calls are authenticated
-  return new ClobClient(
-    env.clobApiUrl,
-    Chain.POLYGON,
-    walletClient,
-    creds,
-    2 as any,
-    env.proxyWallet,
-  );
+  // Second pass: reconstruct with creds and sig type
+  return new ClobClient(env.clobApiUrl, Chain.POLYGON, walletClient, creds, SIG_TYPE);
 }
 
 // Lazy singleton — first call triggers auth, all subsequent calls reuse it.
