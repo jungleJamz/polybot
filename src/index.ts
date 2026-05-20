@@ -67,13 +67,12 @@ async function executeTakers(
 
   for (const taker of takers) {
     if (taker.bookmakers.length < TAKER_MIN_BOOKMAKERS) {
-      // console.log(
-      //   `   skip ${taker.marketSlug} (${taker.outcomeName}): only ${taker.bookmakers.length} books`,
-      // );
-      log.debug(
-        `   skip ${taker.marketSlug} (${taker.outcomeName}): only ${taker.bookmakers.length} books`,
-      );
+      log.debug(`   skip ${taker.marketSlug}: only ${taker.bookmakers.length} books`);
+      continue;
+    }
 
+    if (taker.ev * 100 > 15) {
+      log.warn(`   skip ${taker.marketSlug}: EV ${(taker.ev * 100).toFixed(1)}% too high — likely stale`);
       continue;
     }
 
@@ -469,12 +468,14 @@ async function runCycle(cycle: number): Promise<number> {
       ev: t.ev,
       size: t.kellySize.constrainedShares,
       price: t.polymarketAsk,
+      startTime: t.eventStartTime,
     }));
     state.makers = opps.makers.map((m) => ({
       slug: m.marketSlug,
       ev: m.ev,
       size: m.kellySize.constrainedShares,
       price: m.targetPrice,
+      startTime: m.eventStartTime,
     }));
 
     // CLV update for markets within closing window

@@ -156,6 +156,26 @@ export default function App() {
           />
         </div>
 
+        {/* Suspicious signal warning */}
+        {[...data.takers, ...data.makers].some((r) => r.ev * 100 > 15) && (
+          <div style={{
+            background: "#3d1212",
+            border: "1px solid #f85149",
+            borderRadius: 8,
+            padding: "10px 16px",
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontSize: 12,
+          }}>
+            <span style={{ color: "#f85149", fontWeight: 700 }}>⚠ SUSPICIOUS SIGNALS</span>
+            <span style={{ color: "#e6edf3" }}>
+              {[...data.takers, ...data.makers].filter((r) => r.ev * 100 > 15).length} opportunities showing EV &gt;15% — likely stale Polymarket prices, verify before going live
+            </span>
+          </div>
+        )}
+
         <OpportunitiesTable
           title="Taker Opportunities"
           rows={data.takers}
@@ -165,6 +185,7 @@ export default function App() {
           title="Maker Opportunities"
           rows={data.makers}
           priceLabel="Bid"
+          defaultCollapsed={true}
         />
         <LogFeed logs={data.logs} />
       </div>

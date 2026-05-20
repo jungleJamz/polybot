@@ -3,6 +3,7 @@ export interface OpportunitySummary {
   ev: number;
   size: number;
   price: number;
+  startTime?: string;
 }
 
 export interface DashboardState {
